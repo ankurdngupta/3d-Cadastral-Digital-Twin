@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D ULPIN & Vertical Cadastral Digital Twin - High-Rise Society</title>
+  <style>
+    /* __STYLES__ */
+  </style>
+</head>
+<body>
+  <!-- 3D WebGL Canvas Container -->
+  <div id="scene-container"></div>
+
+  <!-- Top Navigation & Building Switcher -->
+  <nav id="top-nav" class="glass-panel">
+    <div class="brand-section">
+      <div class="brand-logo">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 3L2 12h3v8h6v-6h2v6h6v-8h3L12 3z"/>
+        </svg>
+      </div>
+      <div class="brand-title">
+        <h1>3D ULPIN Cadastral Platform</h1>
+        <p id="brand-subtitle">
+          <span class="badge-gov" id="brand-badge">Govt of Haryana · GMDA Cadastre</span>
+          DLF The Magnolias · Sector 54 · Parcel P00892
+        </p>
+      </div>
+    </div>
+
+    <!-- City & Society Selector Dropdown -->
+    <div class="society-dropdown-container">
+      <select id="society-picker" onchange="switchSociety(this.value)">
+        <option value="HR_GGN_01">🏙️ Gurugram · DLF The Magnolias</option>
+        <option value="MH_MUM_01">🏙️ Mumbai · Hiranandani Gardens</option>
+        <option value="KA_BLR_01">🏙️ Bengaluru · Prestige Shantiniketan</option>
+        <option value="UP_NOI_01">🏙️ Noida · ATS Knightsbridge</option>
+        <option value="RJ_JPR_01">🏙️ Jaipur · Surya Heights</option>
+      </select>
+    </div>
+
+    <!-- Complex Spatial Zone Switcher -->
+    <div class="building-switcher" id="bldg-switcher-tabs">
+      <button class="bldg-tab-btn active" data-bldg="T01" onclick="switchBuilding('T01')">
+        🏢 Tower A
+      </button>
+      <button class="bldg-tab-btn" data-bldg="T02" onclick="switchBuilding('T02')">
+        🏢 Tower B
+      </button>
+      <button class="bldg-tab-btn" data-bldg="T03" onclick="switchBuilding('T03')">
+        🏢 Tower C
+      </button>
+      <button class="bldg-tab-btn" data-bldg="T04" onclick="switchBuilding('T04')">
+        🏢 Tower D
+      </button>
+      <button class="bldg-tab-btn" data-bldg="COM01" onclick="switchBuilding('COM01')">
+        🏦 Arcade
+      </button>
+      <button class="bldg-tab-btn" data-bldg="INF_FLY" onclick="switchBuilding('INF_FLY')">
+        🌉 Flyover
+      </button>
+      <button class="bldg-tab-btn" data-bldg="INF_MTR" onclick="switchBuilding('INF_MTR')">
+        🚇 Metro
+      </button>
+      <button class="bldg-tab-btn" data-bldg="INF_UTL" onclick="switchBuilding('INF_UTL')">
+        💧 Utilities
+      </button>
+    </div>
+
+    <div class="stats-group">
+      <div class="stat-item">
+        <span class="stat-val" id="stat-floors">-</span>
+        <span class="stat-lbl">Levels</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-val" id="stat-ulpins">-</span>
+        <span class="stat-lbl">3D ULPINs</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-val" id="stat-conflicts">-</span>
+        <span class="stat-lbl">Conflicts</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- GIS / Digital Twin Side Toolbar -->
+  <aside id="gis-side-toolbar" class="glass-panel">
+    <button class="tool-btn" id="btn-tool-xray" onclick="toggleSubsurfaceXRay()">
+      <svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+      <span class="tool-tooltip">Subsurface X-Ray (See Underground)</span>
+    </button>
+    <button class="tool-btn" id="btn-tool-parking" onclick="toggleParkingLayer()">
+      <svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>
+      <span class="tool-tooltip">Underground Parking (B1 & B2)</span>
+    </button>
+    <button class="tool-btn" id="btn-tool-metro" onclick="toggleMetroLayer()">
+      <svg viewBox="0 0 24 24"><path d="M12 2c-4 0-8 .5-8 4v9.5C4 17.43 5.57 19 7.5 19L6 20.5v.5h12v-.5L16.5 19c1.93 0 3.5-1.57 3.5-3.5V6c0-3.5-4-4-8-4zM7.5 17c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z"/></svg>
+      <span class="tool-tooltip">Subterranean Metro Transit</span>
+    </button>
+    <button class="tool-btn" id="btn-tool-flyover" onclick="toggleFlyoverLayer()">
+      <svg viewBox="0 0 24 24"><path d="M21 15.5l-6-2.5V8.8c.6-.4 1-1 1-1.8 0-1.1-.9-2-2-2s-2 .9-2 2c0 .8.4 1.4 1 1.8v4.2l-6 2.5V19h14v-3.5zM4 19v-2.1l7-2.9v-2.1L4 15V19zm16 0h-2v-4l-7-2.9v2.1l7 2.9V19h2z"/></svg>
+      <span class="tool-tooltip">Elevated Highway Flyover</span>
+    </button>
+    <button class="tool-btn" id="btn-tool-utility" onclick="toggleSubsurfaceUtilities()">
+      <svg viewBox="0 0 24 24"><path d="M12 3L2 12h3v8h14v-8h3L12 3zm0 4.5l6 5.4V18h-3v-4H9v4H6v-5.1l6-5.4z"/></svg>
+      <span class="tool-tooltip">3D Utility Pipe Network</span>
+    </button>
+    <button class="tool-btn" id="btn-tool-lidar" onclick="togglePointCloud()">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+      <span class="tool-tooltip">LiDAR Point Cloud Scan</span>
+    </button>
+    <button class="tool-btn" id="btn-tool-measure" onclick="toggleMeasureMode()">
+      <svg viewBox="0 0 24 24"><path d="M3 17h18v2H3zm16-5l-2-2-4 4-2-2-4 4-2-2-2 2v2h18v-4z"/></svg>
+      <span class="tool-tooltip">3D Tape Measure</span>
+    </button>
+    <div style="height: 1px; background: var(--border-glass); margin: 6px 0;"></div>
+    <button class="tool-btn" onclick="setCameraScene('top')">
+      <svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+      <span class="tool-tooltip">Plan (Top-Down)</span>
+    </button>
+    <button class="tool-btn" onclick="setCameraScene('drone')">
+      <svg viewBox="0 0 24 24"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>
+      <span class="tool-tooltip">Aerial Drone View</span>
+    </button>
+    <button class="tool-btn" onclick="setCameraScene('street')">
+      <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14h-4v-2h4v2zm0-4h-4v-2h4v2zm0-4h-4V7h4v2z"/></svg>
+      <span class="tool-tooltip">Park & Fountain View</span>
+    </button>
+  </aside>
+
+  <!-- Left Sidebar: 2D Building & Infrastructure Floor Stack View -->
+  <aside id="building-stack-panel" class="glass-panel">
+    <div class="panel-header">
+      <h2>
+        <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M4 6h16V4H4v2zm0 5h16V9H4v2zm0 5h16v-2H4v2zm0 5h16v-2H4v2z"/>
+        </svg>
+        Spatial Hierarchy
+      </h2>
+      <span class="current-bldg-badge" id="current-bldg-name">Tower A</span>
+    </div>
+    <div class="floor-stack-container" id="floor-stack-list">
+      <!-- Injected by app.js -->
+    </div>
+  </aside>
+
+  <!-- Right Panel: Flat Parcel Details Card -->
+  <section id="details-card-panel" class="glass-panel">
+    <div class="details-header">
+      <div class="details-title-wrap">
+        <h3 id="card-title">Apartment Details</h3>
+        <p id="card-subtitle">Vertical Cadastral Information</p>
+      </div>
+      <div class="close-card-btn" onclick="closeDetailsCard()">&times;</div>
+    </div>
+
+    <div class="detail-row">
+      <span class="detail-label">3D ULPIN</span>
+      <div class="ulpin-code-box" id="card-ulpin">RJ-KRL-VLG023-P00456-T01-F03-A301-RES</div>
+    </div>
+
+    <div class="detail-row">
+      <span class="detail-label">Registered Owner / Agency</span>
+      <div class="detail-value" id="card-owner">ABC</div>
+    </div>
+
+    <div class="meta-grid">
+      <div class="detail-row">
+        <span class="detail-label">Floor / Level</span>
+        <div class="detail-value" id="card-floor">Floor 3</div>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Spatial Area</span>
+        <div class="detail-value" id="card-area">110.0 m²</div>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Z-Elevation Range</span>
+        <div class="detail-value" id="card-height">9.0m to 12.0m</div>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Status</span>
+        <div class="status-badge valid" id="card-status-badge">✔ Valid Parcel</div>
+      </div>
+    </div>
+
+    <div id="card-conflict-box" class="conflict-warning-box" style="display: none;">
+      ⚠ Boundary overlap detected on this floor.
+    </div>
+
+    <div class="action-buttons-wrap">
+      <button class="primary-btn" id="btn-inspect-interior" onclick="enterInteriorMode()">
+        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/></svg>
+        Inspect 3D Interior Plan
+      </button>
+      <button class="secondary-btn" onclick="openPropertyDeed()">
+        <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+        View 3D Property Deed
+      </button>
+    </div>
+  </section>
+
+  <!-- Interior Floor Plan HUD Overlay -->
+  <div id="interior-hud" class="glass-panel">
+    <div class="hud-title">
+      <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3L2 12h3v8h14v-8h3L12 3z"/></svg>
+      <span id="hud-flat-title">Apartment A-301 - 3D BIM Interior Plan</span>
+    </div>
+    <button class="hud-btn" onclick="setCameraScene('top')">📐 Plan (Top-Down)</button>
+    <button class="hud-btn" onclick="setCameraScene('isometric')">🔄 3D Orbit</button>
+    <button class="hud-btn" onclick="exitInteriorMode()">⬅ Back to Society View</button>
+  </div>
+
+  <!-- Measure Mode Banner -->
+  <div id="measure-banner">
+    📏 3D Measurement Active: Click any two points in 3D to measure direct spatial distance.
+  </div>
+
+  <!-- Bottom Interactive Controls Toolbar -->
+  <div id="bottom-toolbar" class="glass-panel">
+    <div class="control-item">
+      <label for="explode-slider">Explode Floors:</label>
+      <input type="range" id="explode-slider" min="0" max="1" step="0.05" value="0" oninput="setExplodeFactor(parseFloat(this.value))">
+    </div>
+    <button class="action-btn" onclick="resetView()">
+      <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+      Reset View
+    </button>
+    <button class="action-btn" onclick="toggleDayNight()">
+      <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/></svg>
+      Day/Night
+    </button>
+  </div>
+
+  <!-- Map Legend -->
+  <div id="map-legend" class="glass-panel">
+    <div class="legend-item">
+      <span class="legend-color" style="background: var(--res-color)"></span>
+      Apartment (RES)
+    </div>
+    <div class="legend-item">
+      <span class="legend-color" style="background: var(--com-color)"></span>
+      Commercial (COM)
+    </div>
+    <div class="legend-item">
+      <span class="legend-color" style="background: var(--prk-color)"></span>
+      Underground Parking (PRK)
+    </div>
+    <div class="legend-item">
+      <span class="legend-color" style="background: var(--mtr-color)"></span>
+      Metro Tunnel (MTR)
+    </div>
+    <div class="legend-item">
+      <span class="legend-color" style="background: var(--fly-color)"></span>
+      Elevated Flyover (FLY)
+    </div>
+    <div class="legend-item">
+      <span class="legend-color" style="background: var(--utl-color)"></span>
+      Utility Pipeline (UTL)
+    </div>
+    <div class="legend-item">
+      <span class="legend-color" style="background: var(--accent-conflict)"></span>
+      Boundary Conflict
+    </div>
+  </div>
+
+  <!-- Official 3D Cadastral Property Deed Certificate Modal -->
+  <div id="deed-modal">
+    <div class="deed-certificate-card">
+      <span class="deed-close-btn" onclick="closePropertyDeed()">&times;</span>
+      <div class="deed-header">
+        <h2>Government of Rajasthan · Revenue Department</h2>
+        <p>National Cadastral Cadre · Digital 3D ULPIN Property Certificate</p>
+      </div>
+
+      <div class="deed-body">
+        <div class="deed-field">
+          <b>3D ULPIN Identification</b>
+          <span id="deed-ulpin" style="color:#1e3a8a; font-family:'JetBrains Mono',monospace;">RJ-KRL-VLG023-P00456-T01-F03-A301-RES</span>
+        </div>
+        <div class="deed-field">
+          <b>Registered Owner / Stakeholder</b>
+          <span id="deed-owner">ABC</span>
+        </div>
+        <div class="deed-field">
+          <b>Building Complex / Infrastructure</b>
+          <span id="deed-building">Tower A (Royal Crest - 14 Storeys)</span>
+        </div>
+        <div class="deed-field">
+          <b>Floor / Elevation Level</b>
+          <span id="deed-floor">Floor 3</span>
+        </div>
+        <div class="deed-field">
+          <b>Carpet & Built-up Area</b>
+          <span id="deed-area">110.0 sq.m</span>
+        </div>
+        <div class="deed-field">
+          <b>Vertical Z-Elevation Range</b>
+          <span id="deed-elevation">9.0m to 12.0m</span>
+        </div>
+        <div class="deed-field">
+          <b>Assessed Circle Value</b>
+          <span id="deed-valuation">₹ 95,00,000</span>
+        </div>
+        <div class="deed-field">
+          <b>Cadastral Surface Parcel</b>
+          <span>Plot P00456 (Village 023, Karauli)</span>
+        </div>
+
+        <div class="deed-qr-wrap">
+          <div>
+            <div style="font-size: 11px; font-weight:700; color:#1e3a8a;">DIGITALLY VERIFIED 3D DEED</div>
+            <div style="font-size: 10px; color:#64748b;">SHA-256: e3b0c44298fc1c149afbf4c8996fb924</div>
+          </div>
+          <div class="deed-stamp">VERIFIED & ENROLLED</div>
+        </div>
+      </div>
+
+      <div class="deed-footer-actions">
+        <button class="print-btn" onclick="window.print()">🖨 Print 3D Property Card</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Injected Three.js Core Library -->
+  <script>
+    // __THREEJS_LIBRARY__
+  </script>
+
+  <!-- Injected Building Data -->
+  <script>
+    window.__BUILDING_DATA__ = null;
+  </script>
+
+  <!-- Application Logic -->
+  <script>
+    // __APP_LOGIC__
+  </script>
+</body>
+</html>

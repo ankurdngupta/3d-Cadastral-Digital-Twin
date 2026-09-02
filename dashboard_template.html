@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>3D ULPIN Dashboard - SIH 2026</title>
+<style>
+  :root {
+    --navy: #0F2A47;
+    --teal: #1C7293;
+    --mint: #2EC4B6;
+    --slate: #334155;
+    --res: #4C8BF5;
+    --com: #2EC4B6;
+    --utl: #334155;
+    --conflict: #E53935;
+    --panel-bg: rgba(15, 42, 71, 0.92);
+  }
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Segoe UI', Calibri, sans-serif; background: #dbe6ec; }
+  #scene-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: grab; }
+  #scene-container:active { cursor: grabbing; }
+
+  #header {
+    position: absolute; top: 0; left: 0; width: 100%; padding: 14px 22px;
+    background: linear-gradient(180deg, rgba(15,42,71,0.95), rgba(15,42,71,0.0));
+    color: white; box-sizing: border-box; pointer-events: none; z-index: 5;
+  }
+  #header h1 { margin: 0; font-size: 20px; }
+  #header p { margin: 2px 0 0; font-size: 12.5px; color: #cadcfc; }
+
+  #stats-bar {
+    position: absolute; top: 14px; right: 22px; display: flex; gap: 10px; z-index: 5;
+  }
+  .stat-chip {
+    background: var(--panel-bg); color: white; padding: 8px 14px; border-radius: 8px;
+    font-size: 12px; text-align: center; min-width: 78px;
+  }
+  .stat-chip b { display: block; font-size: 18px; }
+
+  #layer-panel {
+    position: absolute; top: 100px; left: 22px; background: var(--panel-bg); color: white;
+    border-radius: 10px; padding: 14px 16px; width: 190px; z-index: 5; font-size: 13px;
+  }
+  #layer-panel h3 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--mint); }
+  .layer-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer; }
+  .layer-row input { accent-color: var(--mint); }
+
+  #legend {
+    position: absolute; bottom: 22px; left: 22px; background: var(--panel-bg); color: white;
+    border-radius: 10px; padding: 12px 16px; font-size: 12px; z-index: 5;
+  }
+  .legend-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+  .legend-swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+  #info-panel {
+    position: absolute; top: 100px; right: 22px; width: 260px; background: var(--panel-bg); color: white;
+    border-radius: 10px; padding: 16px; z-index: 5; display: none; font-size: 13px;
+  }
+  #info-panel h3 { margin: 0 0 10px; color: var(--mint); font-size: 14px; }
+  #info-panel .row { margin: 6px 0; line-height: 1.4; }
+  #info-panel .row b { color: #cadcfc; display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.5px; }
+  #info-panel .ulpin-code { font-family: 'Courier New', monospace; font-size: 13px; background: rgba(255,255,255,0.1); padding: 6px 8px; border-radius: 6px; word-break: break-all; }
+  #info-panel .conflict-badge { background: var(--conflict); padding: 3px 8px; border-radius: 12px; font-size: 11px; display: inline-block; margin-top: 4px; }
+  #info-panel .close-btn { position: absolute; top: 10px; right: 12px; cursor: pointer; color: #aabfd4; font-size: 16px; }
+
+  #hint {
+    position: absolute; bottom: 22px; right: 22px; color: #5b7184; font-size: 11.5px; z-index: 5;
+    background: rgba(255,255,255,0.7); padding: 6px 10px; border-radius: 6px;
+  }
+</style>
+</head>
+<body>
+
+<div id="scene-container"></div>
+
+<div id="header">
+  <h1>3D ULPIN Generation &amp; Vertical Property Mapping — Prototype</h1>
+  <p>SIH 2026 · Problem Statement 26011 · Click any floor/unit to inspect its ULPIN</p>
+</div>
+
+<div id="stats-bar"></div>
+<div id="layer-panel"><h3>Floors</h3><div id="layer-list"></div></div>
+<div id="legend">
+  <div class="legend-row"><span class="legend-swatch" style="background:var(--res)"></span> Residential unit</div>
+  <div class="legend-row"><span class="legend-swatch" style="background:var(--com)"></span> Commercial unit</div>
+  <div class="legend-row"><span class="legend-swatch" style="background:var(--utl)"></span> Underground utility</div>
+  <div class="legend-row"><span class="legend-swatch" style="background:var(--conflict)"></span> Conflict detected</div>
+</div>
+<div id="info-panel">
+  <span class="close-btn" onclick="closeInfo()">&times;</span>
+  <h3 id="info-ulpin-title">ULPIN Details</h3>
+  <div id="info-body"></div>
+</div>
+<div id="hint">Drag to rotate &nbsp;·&nbsp; Scroll to zoom</div>
+
+<script>__THREEJS_LIBRARY__</script>
+<script>
+const BUILDING_DATA = __BUILDING_DATA__;
+
+const TYPE_COLORS = { RES: 0x4C8BF5, COM: 0x2EC4B6, UTL: 0x334155 };
+const CONFLICT_COLOR = 0xE53935;
+
+// ---------- Scene setup ----------
+const container = document.getElementById('scene-container');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xdbe6ec);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 500);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+container.appendChild(renderer.domElement);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.75);
+dirLight.position.set(12, 25, 15);
+scene.add(dirLight);
+const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.3);
+dirLight2.position.set(-10, 10, -10);
+scene.add(dirLight2);
+
+// ground plane - semi-transparent so underground units are visible
+// through it (a simple "X-ray" effect to show subsurface assets)
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(60, 60),
+  new THREE.MeshStandardMaterial({ color: 0xc7d6dd, transparent: true, opacity: 0.45, depthWrite: false })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.02;
+ground.renderOrder = 1;
+scene.add(ground);
+
+// grid helper
+const grid = new THREE.GridHelper(60, 30, 0xaebfca, 0xc9d6dd);
+grid.position.y = -0.01;
+scene.add(grid);
+
+// ---------- Build units as boxes ----------
+const OFFSET_X = 5, OFFSET_Z = 5; // center the 10x10 footprint at origin
+const unitMeshes = [];
+const floorGroups = {};
+
+BUILDING_DATA.units.forEach((unit) => {
+  const width = unit.plan_x2 - unit.plan_x1;
+  const depth = unit.plan_y2 - unit.plan_y1;
+  const height = unit.z_max - unit.z_min;
+
+  const geometry = new THREE.BoxGeometry(width * 0.94, height * 0.86, depth * 0.94);
+  const color = unit.conflict ? CONFLICT_COLOR : (TYPE_COLORS[unit.space_type] || 0x999999);
+  const material = new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.92 });
+  const mesh = new THREE.Mesh(geometry, material);
+
+  const cx = (unit.plan_x1 + unit.plan_x2) / 2 - OFFSET_X;
+  const cz = (unit.plan_y1 + unit.plan_y2) / 2 - OFFSET_Z;
+  const cy = (unit.z_min + unit.z_max) / 2;
+  mesh.position.set(cx, cy, cz);
+  mesh.userData = unit;
+
+  const edges = new THREE.EdgesGeometry(geometry);
+  const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 }));
+  mesh.add(line);
+
+  scene.add(mesh);
+  unitMeshes.push(mesh);
+
+  if (!floorGroups[unit.floor_no]) floorGroups[unit.floor_no] = [];
+  floorGroups[unit.floor_no].push(mesh);
+});
+
+// ---------- Floor toggle panel ----------
+const layerList = document.getElementById('layer-list');
+const floorNumbers = Object.keys(floorGroups).map(Number).sort((a, b) => a - b);
+floorNumbers.forEach((floorNo) => {
+  const row = document.createElement('label');
+  row.className = 'layer-row';
+  const label = floorNo < 0 ? 'Basement' : (floorNo === 0 ? 'Ground floor' : `Floor ${floorNo}`);
+  row.innerHTML = `<input type="checkbox" checked data-floor="${floorNo}"> ${label}`;
+  row.querySelector('input').addEventListener('change', (e) => {
+    const visible = e.target.checked;
+    floorGroups[floorNo].forEach((m) => m.visible = visible);
+  });
+  layerList.appendChild(row);
+});
+
+// ---------- Stats bar ----------
+const statsBar = document.getElementById('stats-bar');
+const stats = [
+  { label: 'Floors', value: BUILDING_DATA.detected_floor_count },
+  { label: 'ULPINs', value: BUILDING_DATA.total_ulpins },
+  { label: 'Conflicts', value: BUILDING_DATA.total_conflicts },
+];
+stats.forEach((s) => {
+  const chip = document.createElement('div');
+  chip.className = 'stat-chip';
+  chip.innerHTML = `<b>${s.value}</b>${s.label}`;
+  statsBar.appendChild(chip);
+});
+
+// ---------- Camera + simple orbit controls (no external library needed) ----------
+let radius = 26, theta = Math.PI / 4, phi = Math.PI / 3.2;
+function updateCamera() {
+  camera.position.x = radius * Math.sin(phi) * Math.sin(theta);
+  camera.position.y = radius * Math.cos(phi);
+  camera.position.z = radius * Math.sin(phi) * Math.cos(theta);
+  camera.lookAt(0, 4, 0);
+}
+updateCamera();
+
+let isDragging = false, lastX = 0, lastY = 0;
+container.addEventListener('mousedown', (e) => { isDragging = true; lastX = e.clientX; lastY = e.clientY; });
+window.addEventListener('mouseup', () => isDragging = false);
+window.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  const dx = e.clientX - lastX, dy = e.clientY - lastY;
+  theta -= dx * 0.007;
+  phi = Math.min(Math.max(phi - dy * 0.007, 0.3), Math.PI / 2 - 0.05);
+  lastX = e.clientX; lastY = e.clientY;
+  updateCamera();
+});
+container.addEventListener('wheel', (e) => {
+  radius = Math.min(Math.max(radius + e.deltaY * 0.02, 8), 60);
+  updateCamera();
+});
+
+// touch support (basic)
+let lastTouchX = 0, lastTouchY = 0;
+container.addEventListener('touchstart', (e) => { lastTouchX = e.touches[0].clientX; lastTouchY = e.touches[0].clientY; });
+container.addEventListener('touchmove', (e) => {
+  const dx = e.touches[0].clientX - lastTouchX, dy = e.touches[0].clientY - lastTouchY;
+  theta -= dx * 0.007;
+  phi = Math.min(Math.max(phi - dy * 0.007, 0.3), Math.PI / 2 - 0.05);
+  lastTouchX = e.touches[0].clientX; lastTouchY = e.touches[0].clientY;
+  updateCamera();
+});
+
+// ---------- Click to inspect a unit ----------
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let dragStartTime = 0;
+container.addEventListener('mousedown', () => dragStartTime = Date.now());
+container.addEventListener('mouseup', (e) => {
+  if (Date.now() - dragStartTime > 250) return; // was a drag, not a click
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(unitMeshes);
+  if (hits.length > 0) showInfo(hits[0].object.userData);
+});
+
+function showInfo(unit) {
+  const panel = document.getElementById('info-panel');
+  const floorLabel = unit.floor_no < 0 ? 'Basement' : (unit.floor_no === 0 ? 'Ground floor' : `Floor ${unit.floor_no}`);
+  const typeLabel = { RES: 'Residential', COM: 'Commercial', UTL: 'Underground utility' }[unit.space_type] || unit.space_type;
+  document.getElementById('info-ulpin-title').textContent = `${typeLabel} unit`;
+  document.getElementById('info-body').innerHTML = `
+    <div class="row"><b>3D ULPIN</b><span class="ulpin-code">${unit.ulpin}</span></div>
+    <div class="row"><b>Location</b>${floorLabel}, unit ${unit.unit_id}</div>
+    <div class="row"><b>Elevation (Z-range)</b>${unit.z_min}m to ${unit.z_max}m</div>
+    ${unit.conflict ? '<div class="conflict-badge">⚠ Overlap conflict detected</div>' : ''}
+  `;
+  panel.style.display = 'block';
+}
+function closeInfo() { document.getElementById('info-panel').style.display = 'none'; }
+
+// ---------- Resize handling ----------
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ---------- Render loop ----------
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>
