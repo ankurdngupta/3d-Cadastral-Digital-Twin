@@ -3,6 +3,8 @@
 ===================================================================
 Coordinates automated generation across Indian cities (Gurugram, Mumbai, Bengaluru, Noida, Jaipur),
 AI floor detection, 3D ULPIN code assignment, topology validation, database persistence, and dashboard compilation.
+
+Now includes: Cadastral Map → 3D City generator for hypothetical village/town layouts.
 """
 
 import json
@@ -15,6 +17,7 @@ if CURRENT_DIR not in sys.path:
     sys.path.insert(0, CURRENT_DIR)
 
 from city_generator import build_all_societies_dataset
+from city_map_generator import generate_city_map_dataset
 from floor_detector import detect_floors
 from topology import validate_topology
 from db_manager import save_to_sqlite
@@ -89,7 +92,14 @@ def run_pipeline():
 
     print("\n[1/7] Running Automated Multi-City & Society Cadastral Engine ...")
     all_societies = build_all_societies_dataset()
-    print(f"      -> Generated {len(all_societies)} premier societies across Indian States:")
+
+    # ── 3D City Map (Diverse Buildings) ──
+    print("      -> Generating 3D City Map with diverse architecture ...")
+    city_data = generate_city_map_dataset()
+    all_societies[city_data["id"]] = city_data
+    print(f"      -> City: {city_data['total_ulpins']} 3D ULPINs from {len(city_data['buildings'])} distinct buildings")
+
+    print(f"      -> Generated {len(all_societies)} datasets across Indian States:")
     for s_id, s_data in all_societies.items():
         print(f"         - {s_data['city']} ({s_data['state']}): {s_data['name']} [{s_data['total_ulpins']} 3D ULPINs]")
 
@@ -127,7 +137,7 @@ def run_pipeline():
     print(f"      -> Saved {len(all_units_flattened)} 3D ULPIN records to ulpin_3d.db")
 
     print("\n[7/7] Exporting JSON and compiling 3D Web Dashboard ...")
-    export_dashboard(all_societies, active_id="HR_GGN_01")
+    export_dashboard(all_societies, active_id="RJ_JPR_CITY01")
     print("      -> Exported building_data.json")
     print("      -> Generated standalone dashboard.html & index.html")
 

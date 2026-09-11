@@ -32,6 +32,7 @@
     <!-- City & Society Selector Dropdown -->
     <div class="society-dropdown-container">
       <select id="society-picker" onchange="switchSociety(this.value)">
+        <option value="RJ_JPR_CITY01">🏙️ 3D City Map · Nagar Vatika (80 Buildings)</option>
         <option value="HR_GGN_01">🏙️ Gurugram · DLF The Magnolias</option>
         <option value="MH_MUM_01">🏙️ Mumbai · Hiranandani Gardens</option>
         <option value="KA_BLR_01">🏙️ Bengaluru · Prestige Shantiniketan</option>
@@ -179,10 +180,17 @@
         <div class="detail-value" id="card-height">9.0m to 12.0m</div>
       </div>
       <div class="detail-row">
+        <span class="detail-label">Valuation</span>
+        <div class="detail-value" id="card-valuation" style="color:#facc15">—</div>
+      </div>
+      <div class="detail-row">
         <span class="detail-label">Status</span>
         <div class="status-badge valid" id="card-status-badge">✔ Valid Parcel</div>
       </div>
     </div>
+
+    <!-- Room Layout -->
+    <div id="card-rooms" style="display:none;padding:6px 16px;border-top:1px solid rgba(255,255,255,0.08);"></div>
 
     <div id="card-conflict-box" class="conflict-warning-box" style="display: none;">
       ⚠ Boundary overlap detected on this floor.

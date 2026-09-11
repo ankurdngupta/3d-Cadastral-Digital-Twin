@@ -163,10 +163,15 @@ function initScene() {
   buildIndianWeatherClouds();
   buildSocietyLandscapedPark();
   buildHighRiseTowers();
-  buildUndergroundParkingLevels();
-  buildSubterraneanMetroTransit();
-  buildElevatedHighwayFlyover();
-  buildSubsurfaceUtilityGrid();
+
+  // Society-specific infrastructure (skip for city map with many buildings)
+  const hasCityMap = buildingData.buildings && buildingData.buildings.length > 0 && buildingData.buildings[0].arch_type;
+  if (!hasCityMap) {
+    buildUndergroundParkingLevels();
+    buildSubterraneanMetroTransit();
+    buildElevatedHighwayFlyover();
+    buildSubsurfaceUtilityGrid();
+  }
   buildLiDARPointCloud();
 
   // Setup Camera & Controls
@@ -234,8 +239,14 @@ function buildIndianWeatherClouds() {
 function buildSocietyLandscapedPark() {
   const env = new THREE.Group();
 
+  // Determine ground size based on number of buildings (cadastral city is larger)
+  const isLargeCity = (buildingData.buildings || []).length > 15;
+  const groundSize = isLargeCity ? 550 : 380;
+  const plotW = isLargeCity ? 500 : 160;
+  const plotD = isLargeCity ? 420 : 140;
+
   // 1. Rolling Manicured Green Lawns (Image 1)
-  const grassGeo = new THREE.PlaneGeometry(380, 380);
+  const grassGeo = new THREE.PlaneGeometry(groundSize, groundSize);
   const grassMat = new THREE.MeshStandardMaterial({
     color: PALETTE.GRASS_LUSH,
     roughness: 0.88,
@@ -249,11 +260,11 @@ function buildSocietyLandscapedPark() {
   env.add(groundPlane);
 
   // 2. Cadastral Boundary Plot (Light Cyan Holographic Line)
-  const plotGeo = new THREE.PlaneGeometry(160, 140);
+  const plotGeo = new THREE.PlaneGeometry(plotW, plotD);
   const plotMat = new THREE.MeshStandardMaterial({
     color: 0x38bdf8,
     transparent: true,
-    opacity: 0.05,
+    opacity: isLargeCity ? 0.08 : 0.05,
     roughness: 0.8
   });
   plotPlane = new THREE.Mesh(plotGeo, plotMat);
@@ -271,74 +282,76 @@ function buildSocietyLandscapedPark() {
   plotLine.position.set(0, -0.02, 0);
   env.add(plotLine);
 
-  // 3. Circular Resort Swimming Pool & Travertine Sun Deck (Image 1)
-  const resortPool = createResortSwimmingPool();
-  resortPool.position.set(0, 0.02, 8);
-  env.add(resortPool);
+  // Society-specific landscape features (skip for city map)
+  if (!isLargeCity) {
+    // 3. Circular Resort Swimming Pool & Travertine Sun Deck (Image 1)
+    const resortPool = createResortSwimmingPool();
+    resortPool.position.set(0, 0.02, 8);
+    env.add(resortPool);
 
-  // 4. Real Weathered Asphalt Road with Yellow Shoulder Stripes & Cat's Eyes (Image 2)
-  const highwayRoad = createRealisticHighwayRoad();
-  highwayRoad.position.set(0, 0.01, 54);
-  env.add(highwayRoad);
+    // 4. Real Weathered Asphalt Road with Yellow Shoulder Stripes & Cat's Eyes (Image 2)
+    const highwayRoad = createRealisticHighwayRoad();
+    highwayRoad.position.set(0, 0.01, 54);
+    env.add(highwayRoad);
 
-  // Internal Society Crescent Boulevard
-  const crescentRoad = new THREE.Mesh(
-    new THREE.RingGeometry(38, 50, 36, 1, Math.PI * 0.72, Math.PI * 1.56),
-    new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.78 })
-  );
-  crescentRoad.rotation.x = -Math.PI / 2;
-  crescentRoad.position.set(0, 0.02, -15);
-  crescentRoad.receiveShadow = true;
-  env.add(crescentRoad);
+    // Internal Society Crescent Boulevard
+    const crescentRoad = new THREE.Mesh(
+      new THREE.RingGeometry(38, 50, 36, 1, Math.PI * 0.72, Math.PI * 1.56),
+      new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.78 })
+    );
+    crescentRoad.rotation.x = -Math.PI / 2;
+    crescentRoad.position.set(0, 0.02, -15);
+    crescentRoad.receiveShadow = true;
+    env.add(crescentRoad);
 
-  // 5. Curved Walking Promenades & Gazebos (Image 1)
-  const ringProm = new THREE.Mesh(
-    new THREE.RingGeometry(24, 27, 36),
-    new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.8 })
-  );
-  ringProm.rotation.x = -Math.PI / 2;
-  ringProm.position.set(0, 0.03, 8);
-  env.add(ringProm);
+    // 5. Curved Walking Promenades & Gazebos (Image 1)
+    const ringProm = new THREE.Mesh(
+      new THREE.RingGeometry(24, 27, 36),
+      new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.8 })
+    );
+    ringProm.rotation.x = -Math.PI / 2;
+    ringProm.position.set(0, 0.03, 8);
+    env.add(ringProm);
 
-  env.add(createParkGazebo(-24, 0.1, 14));
-  env.add(createParkGazebo(24, 0.1, 14));
+    env.add(createParkGazebo(-24, 0.1, 14));
+    env.add(createParkGazebo(24, 0.1, 14));
 
-  // 6. Organic Sprawling Indian Shade Trees (Images 3 & 4)
-  const treeCoords = [
-    [-46, 0, -8], [-52, 0, -22], [-42, 0, -32], [46, 0, -8], [52, 0, -22], [42, 0, -32],
-    [-24, 0, 24], [24, 0, 24], [-44, 0, 36], [44, 0, 36], [-12, 0, 20], [12, 0, 20],
-    [-38, 0, 4], [-20, 0, -4], [4, 0, -10], [36, 0, 20], [40, 0, -8], [22, 0, -18],
-    [30, 0, 32], [-30, 0, 32], [-6, 0, 32], [6, 0, 32]
-  ];
-  treeCoords.forEach((tc, idx) => {
-    // Alternate between Sprawling Banyan/Cedar (Image 4) and Flowering Shade Tree (Image 3)
-    if (idx % 2 === 0) {
-      env.add(createSprawlingCedarTree(tc[0], tc[1], tc[2]));
-    } else {
-      env.add(createSprawlingShadeTree(tc[0], tc[1], tc[2]));
-    }
-  });
+    // 6. Organic Sprawling Indian Shade Trees (Images 3 & 4)
+    const treeCoords = [
+      [-46, 0, -8], [-52, 0, -22], [-42, 0, -32], [46, 0, -8], [52, 0, -22], [42, 0, -32],
+      [-24, 0, 24], [24, 0, 24], [-44, 0, 36], [44, 0, 36], [-12, 0, 20], [12, 0, 20],
+      [-38, 0, 4], [-20, 0, -4], [4, 0, -10], [36, 0, 20], [40, 0, -8], [22, 0, -18],
+      [30, 0, 32], [-30, 0, 32], [-6, 0, 32], [6, 0, 32]
+    ];
+    treeCoords.forEach((tc, idx) => {
+      if (idx % 2 === 0) {
+        env.add(createSprawlingCedarTree(tc[0], tc[1], tc[2]));
+      } else {
+        env.add(createSprawlingShadeTree(tc[0], tc[1], tc[2]));
+      }
+    });
 
-  // 7. Society Entrance Gate with Security Booth
-  const gateGroup = createSocietyEntranceGate();
-  gateGroup.position.set(0, 0, 46);
-  env.add(gateGroup);
+    // 7. Society Entrance Gate with Security Booth
+    const gateGroup = createSocietyEntranceGate();
+    gateGroup.position.set(0, 0, 46);
+    env.add(gateGroup);
 
-  // 8. Aerodynamic Luxury Metallic Sedans (Image 5)
-  env.add(createLuxurySedan(-18, 0.1, 38, PALETTE.CAR_WHITE_METALLIC, 0));
-  env.add(createLuxurySedan(18, 0.1, 40, PALETTE.CAR_DARK_METALLIC, Math.PI));
-  env.add(createLuxurySedan(30, 0.1, -12, PALETTE.CAR_WHITE_METALLIC, Math.PI / 3));
-  env.add(createLuxurySedan(-35, 9.55, 54 - 2.8, PALETTE.CAR_WHITE_METALLIC, Math.PI / 2));
-  env.add(createLuxurySedan(40, 9.55, 54 + 2.8, PALETTE.CAR_RED_METALLIC, -Math.PI / 2));
-  env.add(createAutoRickshaw(-22, 0.1, 42, Math.PI / 2));
-  env.add(createAutoRickshaw(22, 0.1, 42, -Math.PI / 2));
+    // 8. Aerodynamic Luxury Metallic Sedans (Image 5)
+    env.add(createLuxurySedan(-18, 0.1, 38, PALETTE.CAR_WHITE_METALLIC, 0));
+    env.add(createLuxurySedan(18, 0.1, 40, PALETTE.CAR_DARK_METALLIC, Math.PI));
+    env.add(createLuxurySedan(30, 0.1, -12, PALETTE.CAR_WHITE_METALLIC, Math.PI / 3));
+    env.add(createLuxurySedan(-35, 9.55, 54 - 2.8, PALETTE.CAR_WHITE_METALLIC, Math.PI / 2));
+    env.add(createLuxurySedan(40, 9.55, 54 + 2.8, PALETTE.CAR_RED_METALLIC, -Math.PI / 2));
+    env.add(createAutoRickshaw(-22, 0.1, 42, Math.PI / 2));
+    env.add(createAutoRickshaw(22, 0.1, 42, -Math.PI / 2));
 
-  // 9. Street Lamps
-  const lightCoords = [
-    [-15, 44], [15, 44], [-35, 12], [35, 12], [-18, -12], [18, -12],
-    [26, 14], [-28, 26], [28, 26]
-  ];
-  lightCoords.forEach(lc => env.add(createStreetLight(lc[0], lc[1])));
+    // 9. Street Lamps
+    const lightCoords = [
+      [-15, 44], [15, 44], [-35, 12], [35, 12], [-18, -12], [18, -12],
+      [26, 14], [-28, 26], [28, 26]
+    ];
+    lightCoords.forEach(lc => env.add(createStreetLight(lc[0], lc[1])));
+  }
 
   societyGroup.add(env);
 }
@@ -644,10 +657,414 @@ function createAutoRickshaw(x, y, z, rotY = 0) {
   return auto;
 }
 
-// -------------------------------------------------------------
-// 8. Multi-Winged Ivory & Ochre High-Rise Towers (Image 1)
-// -------------------------------------------------------------
+// =============================================================
+// 8. DIVERSE 3D CITY BUILDING RENDERER
+// =============================================================
+
 function buildHighRiseTowers() {
+  const buildings = buildingData.buildings || [];
+  // If buildings have arch_type metadata, use diverse city renderer
+  if (buildings.length > 0 && buildings[0].arch_type) {
+    buildDiverseCityBuildings();
+    return;
+  }
+  // Original tower renderer for society views
+  buildOriginalSocietyTowers();
+}
+
+// ── Diverse City: Each building looks unique ─────────────────
+function buildDiverseCityBuildings() {
+  const buildings = buildingData.buildings || [];
+
+  // 1. Render streets
+  buildCityStreets();
+
+  // 2. Render each building with unique architecture
+  buildings.forEach(bMeta => {
+    if (bMeta.building_id.startsWith("INF_")) return;
+    const bGroup = new THREE.Group();
+    bGroup.name = `Building_${bMeta.building_id}`;
+    bGroup.position.set(bMeta.center_pos[0], 0, bMeta.center_pos[2]);
+    if (bMeta.rotation) bGroup.rotation.y = (bMeta.rotation * Math.PI) / 180;
+
+    const bUnits = (buildingData.units || []).filter(u => u.building_id === bMeta.building_id);
+    const floorNos = Array.from(new Set(bUnits.map(u => u.floor_no))).sort((a,b) => a-b);
+    const maxFloor = Math.max(...floorNos, 0);
+    const bw = bMeta.dimensions[0];
+    const bd = bMeta.dimensions[1];
+    const totalH = (maxFloor + 1) * 3.2;
+
+    // ── Building Shell (exterior) ──
+    const facadeColor = bMeta.facade_color || 0xFAF8F5;
+    const accentColor = bMeta.accent_color || 0x8B7355;
+    const archType = bMeta.arch_type || 'residential_block';
+
+    // Main body
+    const bodyMat = new THREE.MeshStandardMaterial({
+      color: facadeColor, roughness: archType === 'modern_glass_tower' ? 0.15 : 0.7,
+      metalness: archType === 'modern_glass_tower' ? 0.8 : 0.05,
+    });
+    const bodyGeo = new THREE.BoxGeometry(bw, totalH, bd);
+    const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+    bodyMesh.position.y = totalH / 2;
+    bodyMesh.castShadow = true; bodyMesh.receiveShadow = true;
+    bGroup.add(bodyMesh);
+
+    // Accent pilasters / stripes
+    const pilMat = new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.6 });
+    if (archType !== 'modern_glass_tower' && archType !== 'villa_bungalow') {
+      // Corner pilasters
+      [[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([sx,sz]) => {
+        const pil = new THREE.Mesh(new THREE.BoxGeometry(0.6, totalH + 0.5, 0.6), pilMat);
+        pil.position.set(sx * bw/2, totalH/2, sz * bd/2);
+        bGroup.add(pil);
+      });
+    }
+
+    // Floor lines / bands
+    if (archType !== 'villa_bungalow') {
+      const bandMat = new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.5 });
+      for (let f = 1; f <= maxFloor; f++) {
+        const band = new THREE.Mesh(new THREE.BoxGeometry(bw + 0.4, 0.15, bd + 0.4), bandMat);
+        band.position.y = f * 3.2;
+        bGroup.add(band);
+      }
+    }
+
+    // ── Windows (different patterns per type) ──
+    addDiverseWindows(bGroup, bw, bd, totalH, maxFloor, archType, facadeColor);
+
+    // ── Roof ──
+    addDiverseRoof(bGroup, bw, bd, totalH, bMeta.roof_type || 'flat', accentColor, facadeColor);
+
+    // ── Balconies (residential types) ──
+    if (['residential_block','low_rise_walk_up','art_deco_tower','heritage_palazzo'].includes(archType)) {
+      addCityBalconies(bGroup, bw, bd, totalH, maxFloor);
+    }
+
+    // ── Ground floor accent (darker base) ──
+    const baseMat = new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.8 });
+    const baseGeo = new THREE.BoxGeometry(bw + 0.3, 3.2, bd + 0.3);
+    const baseMesh = new THREE.Mesh(baseGeo, baseMat);
+    baseMesh.position.y = 1.6;
+    baseMesh.castShadow = true;
+    bGroup.add(baseMesh);
+
+    // ── Entrance canopy ──
+    const canopyMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5 });
+    const canopy = new THREE.Mesh(new THREE.BoxGeometry(Math.min(bw * 0.6, 8), 0.2, 3), canopyMat);
+    canopy.position.set(0, 3.5, bd/2 + 1.5);
+    canopy.castShadow = true;
+    bGroup.add(canopy);
+
+    // ── 3D ULPIN Label (floating above building) ──
+    add3DULPINLabel(bGroup, bMeta.name, totalH + 4, bMeta.building_id);
+
+    // ── Interior unit parcels (clickable) ──
+    const OFFSET_X = 5, OFFSET_Z = 5;
+    bUnits.forEach(unit => {
+      const width = Math.abs(unit.plan_x2 - unit.plan_x1);
+      const depth = Math.abs(unit.plan_y2 - unit.plan_y1);
+      const height = unit.z_max - unit.z_min;
+      const cx = (unit.plan_x1 + unit.plan_x2) / 2 - OFFSET_X;
+      const cz = (unit.plan_y1 + unit.plan_y2) / 2 - OFFSET_Z;
+      const cy = (unit.z_min + unit.z_max) / 2;
+
+      const uGroup = new THREE.Group();
+      uGroup.position.set(cx, cy, cz);
+      uGroup.userData = { ...unit, baseCy: cy, bldgPos: bMeta.center_pos };
+
+      // Invisible clickable volume
+      const spaceColor = unit.conflict ? PALETTE.CONFLICT :
+        (unit.space_type === 'COM' ? PALETTE.COM :
+         unit.space_type === 'GOV' ? 0x10b981 :
+         unit.space_type === 'PRK' ? PALETTE.PRK : PALETTE.RES);
+      const clickMat = new THREE.MeshBasicMaterial({
+        color: spaceColor, transparent: true, opacity: unit.conflict ? 0.45 : 0.0
+      });
+      const clickMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(width * 1.01, height * 1.01, depth * 1.01), clickMat
+      );
+      clickMesh.userData = uGroup.userData;
+      uGroup.add(clickMesh);
+      unitMeshes.push(clickMesh);
+
+      // Unit edges
+      const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(width, height, depth));
+      uGroup.add(new THREE.LineSegments(edges, new THREE.LineBasicMaterial({
+        color: unit.conflict ? 0xff4757 : 0xffffff, transparent: true,
+        opacity: unit.conflict ? 0.7 : 0.08
+      })));
+
+      bGroup.add(uGroup);
+      const key = `${unit.building_id}_${unit.floor_no}`;
+      if (!floorGroups[key]) floorGroups[key] = [];
+      floorGroups[key].push(uGroup);
+    });
+
+    // Floor slabs
+    floorNos.forEach(floorNo => {
+      const flUnits = bUnits.filter(u => u.floor_no === floorNo);
+      if (flUnits.length === 0) return;
+      const zMin = Math.min(...flUnits.map(u => u.z_min));
+      const isSub = floorNo < 0;
+      const slab = createTowerFloorSlab(zMin, floorNo, false, isSub);
+      bGroup.add(slab);
+      slabMeshes.push({ mesh: slab, baseElevation: zMin, floorNo, buildingId: bMeta.building_id });
+    });
+
+    societyGroup.add(bGroup);
+  });
+}
+
+// ── Window Renderer (diverse patterns) ──────────────────────
+function addDiverseWindows(group, bw, bd, totalH, maxFloor, archType, facadeColor) {
+  const isGlass = archType === 'modern_glass_tower';
+  const isHeritage = archType === 'heritage_palazzo' || archType === 'civic_landmark';
+
+  for (let f = 0; f <= maxFloor; f++) {
+    const fy = f * 3.2 + 1.6;
+    const winH = isHeritage ? 2.0 : 1.6;
+    const winW = isGlass ? bw * 0.9 : (isHeritage ? 1.2 : 1.4);
+    const nWins = isGlass ? 1 : Math.max(2, Math.floor(bw / 3));
+
+    // Front & back windows
+    for (let side = -1; side <= 1; side += 2) {
+      if (isGlass) {
+        // Curtain wall glass panel
+        const glass = new THREE.Mesh(
+          new THREE.PlaneGeometry(bw * 0.92, 2.4),
+          new THREE.MeshPhysicalMaterial({ color: 0x0f2b48, roughness: 0.08, metalness: 0.9, transparent: true, opacity: 0.85 })
+        );
+        glass.position.set(0, fy, side * (bd/2 + 0.02));
+        if (side < 0) glass.rotation.y = Math.PI;
+        group.add(glass);
+      } else {
+        for (let wi = 0; wi < nWins; wi++) {
+          const wx = -bw/2 + (wi + 0.5) * (bw / nWins);
+          // Frame
+          const frameMat = new THREE.MeshStandardMaterial({ color: isHeritage ? 0x8B7355 : 0x1e293b, roughness: 0.5 });
+          const frame = new THREE.Mesh(new THREE.BoxGeometry(winW + 0.15, winH + 0.15, 0.08), frameMat);
+          frame.position.set(wx, fy, side * (bd/2 + 0.02));
+          group.add(frame);
+          // Glass
+          const glassMat = new THREE.MeshPhysicalMaterial({ color: 0x0f2b48, roughness: 0.1, metalness: 0.8 });
+          const glass = new THREE.Mesh(new THREE.BoxGeometry(winW, winH, 0.04), glassMat);
+          glass.position.set(wx, fy, side * (bd/2 + 0.05));
+          group.add(glass);
+          // Arch for heritage
+          if (isHeritage && f > 0) {
+            const arch = new THREE.Mesh(
+              new THREE.TorusGeometry(winW/2, 0.08, 6, 12, Math.PI),
+              frameMat
+            );
+            arch.position.set(wx, fy + winH/2, side * (bd/2 + 0.06));
+            arch.rotation.z = Math.PI;
+            group.add(arch);
+          }
+        }
+      }
+    }
+
+    // Side windows (fewer)
+    const sideWins = Math.max(1, Math.floor(bd / 4));
+    for (let side = -1; side <= 1; side += 2) {
+      for (let si = 0; si < sideWins; si++) {
+        const sz = -bd/2 + (si + 0.5) * (bd / sideWins);
+        const sGlass = new THREE.Mesh(
+          new THREE.BoxGeometry(0.04, isGlass ? 2.4 : 1.4, isGlass ? bd * 0.8 / sideWins : 1.2),
+          new THREE.MeshPhysicalMaterial({ color: 0x0f2b48, roughness: 0.1, metalness: 0.8 })
+        );
+        sGlass.position.set(side * (bw/2 + 0.04), fy, sz);
+        group.add(sGlass);
+      }
+    }
+  }
+}
+
+// ── Roof Renderer ───────────────────────────────────────────
+function addDiverseRoof(group, bw, bd, totalH, roofType, accentColor, facadeColor) {
+  if (roofType === 'pitched') {
+    // Gabled pitched roof
+    const roofGeo = new THREE.ConeGeometry(Math.max(bw, bd) * 0.72, 4, 4);
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7 });
+    const roof = new THREE.Mesh(roofGeo, roofMat);
+    roof.position.y = totalH + 2;
+    roof.rotation.y = Math.PI / 4;
+    roof.castShadow = true;
+    group.add(roof);
+  } else if (roofType === 'dome') {
+    // Dome roof
+    const domeGeo = new THREE.SphereGeometry(Math.min(bw, bd) * 0.4, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+    const domeMat = new THREE.MeshStandardMaterial({ color: 0xC9A87C, roughness: 0.4, metalness: 0.3 });
+    const dome = new THREE.Mesh(domeGeo, domeMat);
+    dome.position.y = totalH;
+    dome.castShadow = true;
+    group.add(dome);
+    // Dome lantern
+    const lantern = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 2, 8), domeMat);
+    lantern.position.y = totalH + Math.min(bw, bd) * 0.38;
+    group.add(lantern);
+  } else if (roofType === 'stepped') {
+    // Art Deco stepped back
+    for (let step = 0; step < 3; step++) {
+      const scale = 1 - (step + 1) * 0.15;
+      const stepH = 1.5;
+      const stepMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(bw * scale, stepH, bd * scale),
+        new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.5 })
+      );
+      stepMesh.position.y = totalH + step * stepH + stepH / 2;
+      stepMesh.castShadow = true;
+      group.add(stepMesh);
+    }
+    // Spire on top
+    const spire = new THREE.Mesh(
+      new THREE.ConeGeometry(0.8, 4, 8),
+      new THREE.MeshStandardMaterial({ color: 0xFFD700, roughness: 0.3, metalness: 0.6 })
+    );
+    spire.position.y = totalH + 4.5 + 2;
+    group.add(spire);
+  } else if (roofType === 'terrace') {
+    // Flat roof with railing
+    const railMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.5 });
+    for (let side = 0; side < 4; side++) {
+      const isX = side < 2;
+      const dir = side % 2 === 0 ? 1 : -1;
+      const rail = new THREE.Mesh(
+        new THREE.BoxGeometry(isX ? 0.1 : bw, 1.0, isX ? bd : 0.1),
+        railMat
+      );
+      rail.position.set(isX ? dir * bw/2 : 0, totalH + 0.5, isX ? 0 : dir * bd/2);
+      group.add(rail);
+    }
+    // Water tank
+    const tank = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.2, 1.2, 2, 8),
+      new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.4 })
+    );
+    tank.position.set(bw * 0.25, totalH + 1.5, -bd * 0.25);
+    group.add(tank);
+  } else {
+    // Flat roof with parapet
+    const parapet = new THREE.Mesh(
+      new THREE.BoxGeometry(bw + 0.5, 0.8, bd + 0.5),
+      new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.6 })
+    );
+    parapet.position.y = totalH + 0.4;
+    group.add(parapet);
+  }
+}
+
+// ── City Balconies ──────────────────────────────────────────
+function addCityBalconies(group, bw, bd, totalH, maxFloor) {
+  const balcMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.7 });
+  const railMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.5, transparent: true, opacity: 0.8 });
+  const nBalc = Math.max(1, Math.floor(bw / 6));
+  for (let f = 1; f <= Math.min(maxFloor, 8); f += 2) {
+    for (let bi = 0; bi < nBalc; bi++) {
+      const bx = -bw/2 + (bi + 0.5) * (bw / nBalc);
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.15, 1.2), balcMat);
+      slab.position.set(bx, f * 3.2, bd/2 + 0.6);
+      slab.castShadow = true;
+      group.add(slab);
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.8, 0.05), railMat);
+      rail.position.set(bx, f * 3.2 + 0.5, bd/2 + 1.15);
+      group.add(rail);
+    }
+  }
+}
+
+// ── City Streets (roads between buildings) ──────────────────
+function buildCityStreets() {
+  const socData = buildingData.societies && buildingData.societies[buildingData.active_society_id];
+  const streets = (socData && socData.streets) || (buildingData.streets) || [];
+  const piazzas = (socData && socData.piazzas) || (buildingData.piazzas) || [];
+
+  const roadMat = new THREE.MeshStandardMaterial({ color: 0x22262d, roughness: 0.85 });
+  const lineMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.5 });
+  const paveMat = new THREE.MeshStandardMaterial({ color: 0xd4c5a9, roughness: 0.75 });
+
+  streets.forEach(s => {
+    if (s.vertical) {
+      const len = Math.abs((s.z2 || 180) - s.z);
+      const road = new THREE.Mesh(new THREE.PlaneGeometry(s.w, len), roadMat);
+      road.rotation.x = -Math.PI / 2;
+      road.position.set(s.x1, 0.02, s.z + len / 2);
+      road.receiveShadow = true;
+      societyGroup.add(road);
+      // Center line
+      const line = new THREE.Mesh(new THREE.PlaneGeometry(0.2, len), lineMat);
+      line.rotation.x = -Math.PI / 2;
+      line.position.set(s.x1, 0.04, s.z + len / 2);
+      societyGroup.add(line);
+    } else {
+      const len = Math.abs(s.x2 - s.x1);
+      const road = new THREE.Mesh(new THREE.PlaneGeometry(len, s.w), roadMat);
+      road.rotation.x = -Math.PI / 2;
+      road.position.set((s.x1 + s.x2) / 2, 0.02, s.z);
+      road.receiveShadow = true;
+      societyGroup.add(road);
+      const line = new THREE.Mesh(new THREE.PlaneGeometry(len, 0.2), lineMat);
+      line.rotation.x = -Math.PI / 2;
+      line.position.set((s.x1 + s.x2) / 2, 0.04, s.z);
+      societyGroup.add(line);
+    }
+  });
+
+  // Piazzas
+  piazzas.forEach(p => {
+    const piazza = new THREE.Mesh(
+      new THREE.CircleGeometry(p.r, 32),
+      paveMat
+    );
+    piazza.rotation.x = -Math.PI / 2;
+    piazza.position.set(p.x, 0.03, p.z);
+    piazza.receiveShadow = true;
+    societyGroup.add(piazza);
+
+    // Fountain in center
+    const fountain = new THREE.Mesh(
+      new THREE.CylinderGeometry(2, 2.5, 1, 12),
+      new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.4 })
+    );
+    fountain.position.set(p.x, 0.5, p.z);
+    societyGroup.add(fountain);
+    const water = new THREE.Mesh(
+      new THREE.CircleGeometry(1.8, 16),
+      new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.1, metalness: 0.3 })
+    );
+    water.rotation.x = -Math.PI / 2;
+    water.position.set(p.x, 1.02, p.z);
+    societyGroup.add(water);
+  });
+}
+
+// ── 3D ULPIN Label (floating text above building) ───────────
+function add3DULPINLabel(group, text, height, bldgId) {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = 512; canvas.height = 64;
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, 512, 64);
+  ctx.fillStyle = '#00ff88';
+  ctx.font = 'bold 22px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(text.substring(0, 30), 256, 24);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '16px monospace';
+  ctx.fillText(bldgId, 256, 48);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true, opacity: 0.9 });
+  const sprite = new THREE.Sprite(spriteMat);
+  sprite.scale.set(18, 2.2, 1);
+  sprite.position.y = height;
+  group.add(sprite);
+}
+
+// ── Original Society Tower Renderer (preserved) ─────────────
+function buildOriginalSocietyTowers() {
   const bldgConfigs = {
     T01: { center: [-32, 0, -16], name: "Tower A" },
     T02: { center: [-12, 0, -26], name: "Tower B" },
@@ -693,13 +1110,12 @@ function buildHighRiseTowers() {
       }
     });
 
-    // 3D Unit Parcels with Ivory/Ochre Architectural Facades (Image 1)
+    // 3D Unit Parcels with Ivory/Ochre Architectural Facades
     const OFFSET_X = 5, OFFSET_Z = 5;
     bUnits.forEach(unit => {
       const width = Math.abs(unit.plan_x2 - unit.plan_x1);
       const depth = Math.abs(unit.plan_y2 - unit.plan_y1);
       const height = unit.z_max - unit.z_min;
-
       const cx = (unit.plan_x1 + unit.plan_x2) / 2 - OFFSET_X;
       const cz = (unit.plan_y1 + unit.plan_y2) / 2 - OFFSET_Z;
       const cy = (unit.z_min + unit.z_max) / 2;
@@ -708,18 +1124,14 @@ function buildHighRiseTowers() {
       uGroup.position.set(cx, cy, cz);
       uGroup.userData = { ...unit, baseCy: cy, bldgPos: cfg.center };
 
-      // Off-White/Ivory Exterior Wall Body (Image 1)
       const wallMat = new THREE.MeshStandardMaterial({
         color: unit.space_type === 'COM' ? 0xe2e8f0 : (unit.floor_no === 0 ? PALETTE.TOWER_BASE : PALETTE.TOWER_BODY),
-        roughness: 0.65,
-        metalness: 0.05
+        roughness: 0.65, metalness: 0.05
       });
       const wallMesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), wallMat);
-      wallMesh.castShadow = true;
-      wallMesh.receiveShadow = true;
+      wallMesh.castShadow = true; wallMesh.receiveShadow = true;
       uGroup.add(wallMesh);
 
-      // Warm Ochre Vertical Corner Pilaster Ribs (Image 1)
       if (unit.floor_no > 0) {
         const pilasterMat = new THREE.MeshStandardMaterial({ color: PALETTE.TOWER_OCHRE, roughness: 0.6 });
         const pilaster = new THREE.Mesh(new THREE.BoxGeometry(0.4, height, 0.4), pilasterMat);
@@ -727,38 +1139,25 @@ function buildHighRiseTowers() {
         uGroup.add(pilaster);
       }
 
-      // Interactive Holographic Cadastral Boundary (Glows when selected)
       const cadastreMat = new THREE.MeshBasicMaterial({
         color: unit.conflict ? PALETTE.CONFLICT : PALETTE.RES,
-        transparent: true,
-        opacity: unit.conflict ? 0.45 : 0.0
+        transparent: true, opacity: unit.conflict ? 0.45 : 0.0
       });
       const cadastreMesh = new THREE.Mesh(new THREE.BoxGeometry(width * 1.01, height * 1.01, depth * 1.01), cadastreMat);
       cadastreMesh.userData = uGroup.userData;
       uGroup.add(cadastreMesh);
       unitMeshes.push(cadastreMesh);
 
-      // Unit Subtle Edges
       const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(width, height, depth));
-      const edgeLine = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({
-        color: unit.conflict ? 0xff4757 : 0xffffff,
-        transparent: true,
+      uGroup.add(new THREE.LineSegments(edges, new THREE.LineBasicMaterial({
+        color: unit.conflict ? 0xff4757 : 0xffffff, transparent: true,
         opacity: unit.conflict ? 0.7 : 0.15
-      }));
-      uGroup.add(edgeLine);
+      })));
 
-      // Recessed Window Matrix (Dark Bronze Frame + Reflective Glass)
-      if (unit.floor_no >= 0) {
-        addArchitecturalWindowMatrix(uGroup, width, height, depth);
-      }
-
-      // Balconies with Metal Balustrades (Image 1)
-      if (unit.space_type === 'RES' && unit.floor_no > 0) {
-        addHighRiseBalconyAndWindows(uGroup, width, height, depth, unit);
-      }
+      if (unit.floor_no >= 0) addArchitecturalWindowMatrix(uGroup, width, height, depth);
+      if (unit.space_type === 'RES' && unit.floor_no > 0) addHighRiseBalconyAndWindows(uGroup, width, height, depth, unit);
 
       bGroup.add(uGroup);
-
       const key = `${unit.building_id}_${unit.floor_no}`;
       if (!floorGroups[key]) floorGroups[key] = [];
       floorGroups[key].push(uGroup);
@@ -1317,6 +1716,8 @@ function switchSociety(socId) {
   buildingData.village = soc.village;
   buildingData.surface_parcel = soc.surface_parcel;
   buildingData.gov_authority = soc.gov_authority;
+  buildingData.streets = soc.streets || [];
+  buildingData.piazzas = soc.piazzas || [];
 
   const subEl = document.getElementById('brand-subtitle');
   if (subEl) {
@@ -1339,10 +1740,15 @@ function switchSociety(socId) {
   buildIndianWeatherClouds();
   buildSocietyLandscapedPark();
   buildHighRiseTowers();
-  buildUndergroundParkingLevels();
-  buildSubterraneanMetroTransit();
-  buildElevatedHighwayFlyover();
-  buildSubsurfaceUtilityGrid();
+
+  // Society-specific infrastructure (skip for city map)
+  const isCityMap = soc.buildings && soc.buildings.length > 0 && soc.buildings[0].arch_type;
+  if (!isCityMap) {
+    buildUndergroundParkingLevels();
+    buildSubterraneanMetroTransit();
+    buildElevatedHighwayFlyover();
+    buildSubsurfaceUtilityGrid();
+  }
   buildLiDARPointCloud();
 
   renderTowerSwitcherTabs();
@@ -1373,13 +1779,88 @@ function renderTowerSwitcherTabs() {
     INF_UTL: '💧 Utilities'
   };
 
-  buildingData.buildings.forEach((b, idx) => {
-    const btn = document.createElement('button');
-    btn.className = `bldg-tab-btn ${idx === 0 ? 'active' : ''}`;
-    btn.dataset.bldg = b.building_id;
-    btn.textContent = iconMap[b.building_id] || `🏢 ${b.building_id}`;
-    btn.onclick = () => switchBuilding(b.building_id);
-    container.appendChild(btn);
+  const buildings = buildingData.buildings || [];
+
+  // For cadastral city with many buildings, show a compact search/select
+  if (buildings.length > 15) {
+    // Zone summary buttons
+    const zones = {};
+    buildings.forEach(b => {
+      const zone = b.zone || (b.building_id.startsWith('INF_') ? 'INFRA' :
+                              b.building_id.startsWith('COM') ? 'COM' : 'RES');
+      if (!zones[zone]) zones[zone] = [];
+      zones[zone].push(b);
+    });
+
+    const zoneLabels = {
+      RES_DENSE: '🏘️ Dense Residential',
+      RES_MED: '🏠 Medium Residential',
+      COM: '🏪 Commercial',
+      GOV: '🏛️ Government',
+      AGR: '🌾 Agricultural',
+      INFRA: '🔧 Infrastructure'
+    };
+
+    // Plot search box
+    const searchDiv = document.createElement('div');
+    searchDiv.style.cssText = 'padding:4px;width:100%;';
+    searchDiv.innerHTML = `<input type="text" id="plot-search" placeholder="🔍 Plot #..."
+      style="width:100%;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);
+      background:rgba(0,0,0,0.3);color:#fff;font-size:11px;outline:none;"
+      onkeyup="filterPlotTabs(this.value)">`;
+    container.appendChild(searchDiv);
+
+    // Zone category buttons
+    Object.entries(zones).forEach(([zone, blds]) => {
+      const zoneBtn = document.createElement('button');
+      zoneBtn.className = 'bldg-tab-btn';
+      zoneBtn.style.cssText = 'font-size:10px;padding:3px 6px;white-space:nowrap;';
+      zoneBtn.textContent = `${(zoneLabels[zone] || zone)} (${blds.length})`;
+      zoneBtn.onclick = () => {
+        // Show first building in this zone
+        if (blds.length > 0) switchBuilding(blds[0].building_id);
+      };
+      container.appendChild(zoneBtn);
+    });
+
+    // Individual plot buttons (scrollable)
+    const plotsWrap = document.createElement('div');
+    plotsWrap.id = 'plots-scroll-list';
+    plotsWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:2px;max-height:200px;overflow-y:auto;padding:2px;';
+    buildings.forEach((b, idx) => {
+      const btn = document.createElement('button');
+      btn.className = `bldg-tab-btn plot-tab-btn ${idx === 0 ? 'active' : ''}`;
+      btn.dataset.bldg = b.building_id;
+      const plotNum = b.plot_number || b.building_id.replace('PLT', '');
+      btn.textContent = plotNum;
+      btn.style.cssText = 'font-size:9px;padding:2px 5px;min-width:auto;';
+      btn.title = b.name || b.building_id;
+      btn.onclick = () => switchBuilding(b.building_id);
+      plotsWrap.appendChild(btn);
+    });
+    container.appendChild(plotsWrap);
+
+  } else {
+    // Standard tower tabs for small societies
+    buildings.forEach((b, idx) => {
+      const btn = document.createElement('button');
+      btn.className = `bldg-tab-btn ${idx === 0 ? 'active' : ''}`;
+      btn.dataset.bldg = b.building_id;
+      btn.textContent = iconMap[b.building_id] || `🏢 ${b.building_id}`;
+      btn.onclick = () => switchBuilding(b.building_id);
+      container.appendChild(btn);
+    });
+  }
+}
+
+// Filter plot tabs by search query
+function filterPlotTabs(query) {
+  const btns = document.querySelectorAll('.plot-tab-btn');
+  const q = query.trim().toLowerCase();
+  btns.forEach(btn => {
+    const plotNum = btn.textContent.toLowerCase();
+    const title = (btn.title || '').toLowerCase();
+    btn.style.display = (!q || plotNum.includes(q) || title.includes(q)) ? '' : 'none';
   });
 }
 
@@ -1391,7 +1872,8 @@ function switchBuilding(bldgId) {
 
   renderFloorStackUI();
 
-  const targets = {
+  // Static targets for known tower layouts
+  const staticTargets = {
     T01: [-32, 24, -16, 68],
     T02: [-12, 26, -26, 72],
     T03: [12, 26, -26, 72],
@@ -1401,7 +1883,21 @@ function switchBuilding(bldgId) {
     INF_MTR: [0, -15, -42, 65],
     INF_UTL: [0, -3, 20, 60]
   };
-  const t = targets[bldgId] || [0, 12, 0, 75];
+
+  let t = staticTargets[bldgId];
+
+  // Dynamic target from building metadata (for cadastral city plots)
+  if (!t) {
+    const bMeta = (buildingData.buildings || []).find(b => b.building_id === bldgId);
+    if (bMeta && bMeta.center_pos) {
+      const maxFloor = Math.max(...(bMeta.floors || [0]));
+      const camHeight = Math.max(8, maxFloor * 3 * 0.6);
+      t = [bMeta.center_pos[0], camHeight, bMeta.center_pos[2], Math.max(30, camHeight * 2)];
+    } else {
+      t = [0, 12, 0, 75];
+    }
+  }
+
   targetX = t[0];
   targetY = t[1];
   targetZ = t[2];
@@ -1451,6 +1947,29 @@ function showDetailsCard(unit) {
   document.getElementById('card-area').textContent = `${unit.area_sqm || 110} m²`;
   document.getElementById('card-height').textContent = `${unit.z_min}m to ${unit.z_max}m`;
 
+  // Room layout (for city map buildings)
+  const roomsEl = document.getElementById('card-rooms');
+  if (roomsEl) {
+    const rooms = unit.rooms || [];
+    if (rooms.length > 0) {
+      const bhkLabel = unit.bhk_type ? `<b style="color:#00ff88;font-size:13px">${unit.bhk_type.toUpperCase()}</b><br>` : '';
+      roomsEl.innerHTML = bhkLabel + rooms.map(r =>
+        `<span style="display:inline-block;background:rgba(255,255,255,0.08);border-radius:4px;padding:2px 6px;margin:1px;font-size:10px">
+          ${r.label || r.type} (${r.w}×${r.d}m)
+        </span>`
+      ).join('');
+      roomsEl.style.display = 'block';
+    } else {
+      roomsEl.style.display = 'none';
+    }
+  }
+
+  // Valuation
+  const valEl = document.getElementById('card-valuation');
+  if (valEl) {
+    valEl.textContent = unit.valuation_inr ? `₹${(unit.valuation_inr / 100000).toFixed(1)} Lakh` : '—';
+  }
+
   const statusBadge = document.getElementById('card-status-badge');
   const conflictBox = document.getElementById('card-conflict-box');
 
@@ -1467,7 +1986,7 @@ function showDetailsCard(unit) {
 
   const interiorBtn = document.getElementById('btn-inspect-interior');
   if (interiorBtn) {
-    interiorBtn.style.display = unit.space_type === 'RES' ? 'flex' : 'none';
+    interiorBtn.style.display = (unit.space_type === 'RES' || (unit.rooms && unit.rooms.length > 0)) ? 'flex' : 'none';
   }
 
   panel.style.display = 'flex';
@@ -1542,26 +2061,29 @@ function toggleMeasureMode() {
 }
 
 function setCameraScene(mode) {
+  const isLargeCity = (buildingData.buildings || []).length > 15;
+  const scaleR = isLargeCity ? 2.8 : 1;
+
   if (mode === 'top') {
     targetX = 0; targetY = 0; targetZ = 5;
     theta = 0;
     phi = 0.001;
-    radius = isInteriorMode ? 18 : 120;
+    radius = isInteriorMode ? 18 : 120 * scaleR;
   } else if (mode === 'drone') {
-    targetX = 0; targetY = 16; targetZ = 0;
+    targetX = 0; targetY = isLargeCity ? 40 : 16; targetZ = 0;
     theta = Math.PI / 4;
     phi = Math.PI / 3.4;
-    radius = 100;
+    radius = 100 * scaleR;
   } else if (mode === 'street') {
     targetX = 14; targetY = 4; targetZ = 8;
     theta = -Math.PI / 6;
     phi = Math.PI / 2.15;
-    radius = 35;
+    radius = 35 * scaleR;
   } else if (mode === 'isometric') {
-    targetX = 0; targetY = 14; targetZ = 0;
+    targetX = 0; targetY = isLargeCity ? 40 : 14; targetZ = 0;
     theta = Math.PI / 4;
     phi = Math.PI / 3.5;
-    radius = 80;
+    radius = 80 * scaleR;
   }
   updateCameraPosition();
 }
@@ -2036,7 +2558,9 @@ function setupRaycaster(container) {
 }
 
 function resetView() {
-  switchBuilding('T01');
+  const firstBldg = (buildingData.buildings && buildingData.buildings.length > 0)
+    ? buildingData.buildings[0].building_id : 'T01';
+  switchBuilding(firstBldg);
   setCameraScene('isometric');
   setExplodeFactor(0);
   const slider = document.getElementById('explode-slider');
