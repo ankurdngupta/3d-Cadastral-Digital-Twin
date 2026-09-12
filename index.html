@@ -1504,7 +1504,7 @@ function initScene() {
 
   // Society-specific infrastructure (skip for city map with many buildings)
   const hasCityMap = buildingData.buildings && buildingData.buildings.length > 0 && buildingData.buildings[0].arch_type;
-  if (!hasCityMap) {
+  if (true) { // Enabled for City Map per user request
     buildUndergroundParkingLevels();
     buildSubterraneanMetroTransit();
     buildElevatedHighwayFlyover();
@@ -2110,7 +2110,7 @@ function buildDiverseCityBuildings() {
 
       const uGroup = new THREE.Group();
       uGroup.position.set(cx, cy, cz);
-      uGroup.userData = { ...unit, baseCy: cy, bldgPos: bMeta.center_pos };
+      uGroup.userData = { ...unit, baseCy: cy, bldgPos: bMeta.center_pos, isUGroup: true };
 
       // Invisible clickable volume
       const spaceColor = unit.conflict ? PALETTE.CONFLICT :
@@ -2147,6 +2147,7 @@ function buildDiverseCityBuildings() {
       const zMin = Math.min(...flUnits.map(u => u.z_min));
       const isSub = floorNo < 0;
       const slab = createTowerFloorSlab(zMin, floorNo, false, isSub);
+      slab.userData.isSlab = true;
       bGroup.add(slab);
       slabMeshes.push({ mesh: slab, baseElevation: zMin, floorNo, buildingId: bMeta.building_id });
     });
@@ -2359,7 +2360,7 @@ function buildCityStreets() {
     piazza.rotation.x = -Math.PI / 2;
     piazza.position.set(p.x, 0.03, p.z);
     piazza.receiveShadow = true;
-    societyGroup.add(piazza);
+    // societyGroup.add(piazza);
 
     // Fountain in center
     const fountain = new THREE.Mesh(
@@ -2367,14 +2368,14 @@ function buildCityStreets() {
       new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.4 })
     );
     fountain.position.set(p.x, 0.5, p.z);
-    societyGroup.add(fountain);
+    // societyGroup.add(fountain);
     const water = new THREE.Mesh(
       new THREE.CircleGeometry(1.8, 16),
       new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.1, metalness: 0.3 })
     );
     water.rotation.x = -Math.PI / 2;
     water.position.set(p.x, 1.02, p.z);
-    societyGroup.add(water);
+    // societyGroup.add(water);
   });
 }
 
@@ -2438,11 +2439,13 @@ function buildOriginalSocietyTowers() {
 
       const isSub = floorNo < 0;
       const slab = createTowerFloorSlab(zMin, floorNo, false, isSub);
+      slab.userData.isSlab = true;
       bGroup.add(slab);
       slabMeshes.push({ mesh: slab, baseElevation: zMin, floorNo, buildingId: bMeta.building_id });
 
       if (floorNo === maxFloor) {
         const roof = createTowerFloorSlab(zMax, floorNo, true, false, bMeta.building_id);
+        roof.userData.isSlab = true;
         bGroup.add(roof);
         slabMeshes.push({ mesh: roof, baseElevation: zMax, floorNo, buildingId: bMeta.building_id });
       }
@@ -2460,7 +2463,7 @@ function buildOriginalSocietyTowers() {
 
       const uGroup = new THREE.Group();
       uGroup.position.set(cx, cy, cz);
-      uGroup.userData = { ...unit, baseCy: cy, bldgPos: cfg.center };
+      uGroup.userData = { ...unit, baseCy: cy, bldgPos: cfg.center, isUGroup: true };
 
       const wallMat = new THREE.MeshStandardMaterial({
         color: unit.space_type === 'COM' ? 0xe2e8f0 : (unit.floor_no === 0 ? PALETTE.TOWER_BASE : PALETTE.TOWER_BODY),
@@ -2776,9 +2779,9 @@ function buildUndergroundParkingLevels() {
 function buildSubterraneanMetroTransit() {
   metroGroup.clear();
 
-  const tunnelZ = -42;
+  const tunnelZ = 0.0;
   const tunnelY = -15;
-  const tunnelLength = 200;
+  const tunnelLength = 400;
 
   const tunnelGeo = new THREE.CylinderGeometry(4.5, 4.5, tunnelLength, 24, 1, true);
   tunnelGeo.rotateZ(Math.PI / 2);
@@ -2838,8 +2841,8 @@ function buildElevatedHighwayFlyover() {
   flyoverGroup.clear();
 
   const flyoverY = 9.0;
-  const flyoverZ = 54.0;
-  const flyoverLength = 220;
+  const flyoverZ = 65.0;
+  const flyoverLength = 400;
   const flyoverWidth = 12.0;
 
   const deckGeo = new THREE.BoxGeometry(flyoverLength, 1.0, flyoverWidth);
@@ -3121,64 +3124,9 @@ function renderTowerSwitcherTabs() {
 
   // For cadastral city with many buildings, show a compact search/select
   if (buildings.length > 15) {
-    // Zone summary buttons
-    const zones = {};
-    buildings.forEach(b => {
-      const zone = b.zone || (b.building_id.startsWith('INF_') ? 'INFRA' :
-                              b.building_id.startsWith('COM') ? 'COM' : 'RES');
-      if (!zones[zone]) zones[zone] = [];
-      zones[zone].push(b);
-    });
-
-    const zoneLabels = {
-      RES_DENSE: '🏘️ Dense Residential',
-      RES_MED: '🏠 Medium Residential',
-      COM: '🏪 Commercial',
-      GOV: '🏛️ Government',
-      AGR: '🌾 Agricultural',
-      INFRA: '🔧 Infrastructure'
-    };
-
-    // Plot search box
-    const searchDiv = document.createElement('div');
-    searchDiv.style.cssText = 'padding:4px;width:100%;';
-    searchDiv.innerHTML = `<input type="text" id="plot-search" placeholder="🔍 Plot #..."
-      style="width:100%;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);
-      background:rgba(0,0,0,0.3);color:#fff;font-size:11px;outline:none;"
-      onkeyup="filterPlotTabs(this.value)">`;
-    container.appendChild(searchDiv);
-
-    // Zone category buttons
-    Object.entries(zones).forEach(([zone, blds]) => {
-      const zoneBtn = document.createElement('button');
-      zoneBtn.className = 'bldg-tab-btn';
-      zoneBtn.style.cssText = 'font-size:10px;padding:3px 6px;white-space:nowrap;';
-      zoneBtn.textContent = `${(zoneLabels[zone] || zone)} (${blds.length})`;
-      zoneBtn.onclick = () => {
-        // Show first building in this zone
-        if (blds.length > 0) switchBuilding(blds[0].building_id);
-      };
-      container.appendChild(zoneBtn);
-    });
-
-    // Individual plot buttons (scrollable)
-    const plotsWrap = document.createElement('div');
-    plotsWrap.id = 'plots-scroll-list';
-    plotsWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:2px;max-height:200px;overflow-y:auto;padding:2px;';
-    buildings.forEach((b, idx) => {
-      const btn = document.createElement('button');
-      btn.className = `bldg-tab-btn plot-tab-btn ${idx === 0 ? 'active' : ''}`;
-      btn.dataset.bldg = b.building_id;
-      const plotNum = b.plot_number || b.building_id.replace('PLT', '');
-      btn.textContent = plotNum;
-      btn.style.cssText = 'font-size:9px;padding:2px 5px;min-width:auto;';
-      btn.title = b.name || b.building_id;
-      btn.onclick = () => switchBuilding(b.building_id);
-      plotsWrap.appendChild(btn);
-    });
-    container.appendChild(plotsWrap);
-
+    container.style.display = "none";
   } else {
+    container.style.display = "";
     // Standard tower tabs for small societies
     buildings.forEach((b, idx) => {
       const btn = document.createElement('button');
@@ -3428,6 +3376,27 @@ function setCameraScene(mode) {
 
 function setExplodeFactor(val) {
   explodeFactor = val;
+  const isExploded = val > 0.05;
+
+  // Make exterior transparent and units solid when exploded
+  societyGroup.children.forEach(bGroup => {
+    if (bGroup.name && bGroup.name.startsWith("Building_")) {
+      bGroup.children.forEach(child => {
+        if (!child.userData.isUGroup && !child.userData.isSlab) {
+          child.visible = !isExploded;
+        }
+      });
+    }
+  });
+
+  unitMeshes.forEach(mesh => {
+    if (isExploded) {
+      mesh.material.opacity = 0.85;
+    } else {
+      mesh.material.opacity = mesh.userData.conflict ? 0.45 : 0.0;
+    }
+  });
+
   Object.keys(floorGroups).forEach(key => {
     const floorNo = Number(key.split('_')[1]);
     const groups = floorGroups[key];
